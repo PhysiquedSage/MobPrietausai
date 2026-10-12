@@ -1,90 +1,152 @@
-# Kalorijų dienoraštis
+# Kalorijų dienoraštis — paprasta versija
 
-Faustas Galeckis, MKDf-23s.
+Autorius: **Faustas Galeckis, MKDf-23s**.
 
-Paprasta Jetpack Compose programėlė: vartotojas įveda maistą, pasirenka valgymą, nurodo gramus ir kalorijas / 100 g. Programėlė tikrina reikšmes, apskaičiuoja porcijos kalorijas ir atnaujina dienos suvestinę.
+Programėlėje yra trys puslapiai. Vartotojas įveda maisto pavadinimą ir porcijos kalorijas, pasirenka valgymą, o programėlė sudeda įrašų kalorijas ir parodo likutį iki dienos tikslo.
 
-## Paleidimas
+## Kas pašalinta, kad būtų paprasčiau
 
-Android Studio: **Sync Project with Gradle Files**, tada **Run app** su emuliatoriumi arba telefonu.
+- Maisto katalogas ir atskiras produkto informacijos ekranas.
+- Gramų bei kcal / 100 g įvedimas ir porcijos kalorijų formulė. Dabar įvedamos jau žinomos visos porcijos kalorijos.
+- Atskiros tikrinimo rezultatų ir suvestinės klasės, pasirinktų katalogo produktų būsena.
+- Automatiniai testai, jų bibliotekos ir testų paleidimo nustatymai.
 
-## Penki ekranai
+Pagrindinį kodą sudaro `MainActivity.kt`, `Screens.kt` ir `FoodEntry.kt`. Spalvos, teksto stiliai bei formos lieka `ui/theme` aplanke.
 
-- **Šiandien** — vartotojo įrašai slenkamame sąraše, bendra kalorijų suma, likutis arba viršytas tikslas. Filtrai keičia sąrašą, bet dienos suma visada skaičiuojama iš visų įrašų. Įrašo trynimas patvirtinamas dialoge.
-- **Maistas** — pavyzdinis aštuonių produktų katalogas su paieška, kategorijomis ir slenkamu tinkleliu.
-- **Maisto informacija** — katalogo produkto porcija ir kalorijos. Mygtukas „Pridėti porciją“ atidaro iš anksto užpildytą formą, kurios reikšmes galima keisti.
-- **Pridėti maistą** — atidaromas paspaudus „+“ arba iš katalogo. Įvedamas pavadinimas, gramai, kcal / 100 g ir valgymas. Teisingas įrašas pridedamas į dienoraštį; neteisingas lieka formoje su klaidų pranešimais. „Atšaukti“ nieko neprideda.
-- **Tikslas** — slankiklis keičia bendrą dienos tikslą po 100 kcal (1 000–3 500). Checkbox paslepia arba parodo tikrą dienos progresą, jungiklis pakeičia temą. Atkūrimo mygtukas grąžina nustatymus; maisto įrašai lieka.
+## 1. MainActivity.kt — paleidimas
 
-## Įvesties apdorojimas ir skaičiavimai
+`onCreate` paleidžia ekraną. `setContent` nurodo, kad UI kuriamas su Compose. `ND_MobPrietTheme` pritaiko spalvas ir formas, o `CalorieApp` rodo pačią programėlę.
 
-- Pašalinami pavadinimo tarpai pradžioje ir pabaigoje. Pavadinimas privalomas, iki 100 simbolių.
-- Gramai turi būti skaičius, daugiau už 0 ir iki 10 000 g.
-- Kcal / 100 g turi būti skaičius nuo 0 iki 1 000. Nulinė energinė vertė leidžiama.
-- Priimamas kablelis arba taškas: `12,5` ir `12.5`. Tekstas, `NaN` ir begalybė atmetami.
-- **Porcijos kcal = gramai × kcal / 100 g ÷ 100**, rezultatas suapvalinamas iki sveiko skaičiaus.
-- Dienos suma = visų pridėtų porcijų kalorijų suma. Pridėjus ar pašalinus įrašą ji perskaičiuojama.
-- Likutis = tikslas − suma. Viršijus tikslą rodomas viršijimas, o progreso juosta neviršija 100 %.
+Kintamasis `darkTheme` saugo, ar pasirinkta tamsi tema. Nustatymų jungiklis pakeičia šią reikšmę ir Compose atnaujina spalvas. `SideEffect` po temos pakeitimo pritaiko ir telefono būsenos juostos ikonų kontrastą, kad laikrodis būtų įskaitomas.
 
-Visos maisto įvedimo, skaičiavimo, filtravimo, pridėjimo, trynimo ir tikslo keitimo operacijos susijusios su kalorijų dienoraščio paskirtimi.
+## 2. FoodEntry.kt — vieno įrašo duomenys
 
-## Kodo žemėlapis
+`FoodEntry` yra `data class` su keturiais laukais:
 
-- `MainActivity.kt` — paleidimas ir temos būsena.
-- `CalorieApp.kt` — visi penki navigacijos ekranai, bendri dienoraščio įrašai, tikslas, pridėjimas ir trynimas. Pasirinktas katalogo maistas nustatomas pagal `selectedFoodId`.
-- `AddFoodScreen.kt` — forma, įvesties klaidų rodymas ir kalorijų peržiūra.
-- `DiaryLogic.kt` — `DiaryEntry`, įvesties tikrinimas, porcijų kalorijų skaičiavimas ir dienos suvestinė. Logika atskirta nuo UI, kad būtų paprasta testuoti.
-- `Screens.kt` — dienoraštis, katalogas, tikslas ir maisto informacija.
-- `SampleData.kt` — pavyzdinis katalogas. Jo energinės vertės skirtos demonstracijai.
-- `ui/theme/` — spalvos, formos ir teksto stiliai.
+- `name` — maisto pavadinimas.
+- `calories` — visos įvestos porcijos kalorijos.
+- `meal` — pusryčiai, pietūs, vakarienė arba užkandžiai.
+- `id` — unikalus įrašo numeris, naudojamas trynimui ir sąrašui.
 
-## Kaip paaiškinti kodo veikimą
+`Serializable` leidžia Android išlaikyti šiuos duomenis pasukus ekraną. Tai nėra duomenų bazė.
 
-Skaityk tokia tvarka: **MainActivity → CalorieApp → AddFoodScreen → DiaryLogic → Screens**.
+## 3. Screens.kt: CalorieApp — bendra būsena ir navigacija
 
-1. `MainActivity` paleidžia programėlę ir pritaiko spalvų temą.
-2. `CalorieApp` saugo bendrą būseną: įrašų sąrašą `entries`, dienos tikslą `goal` ir pasirinktą katalogo produktą `selectedFoodId`. `AppScreen` išvardija penkis ekranus, o `NavHost` nurodo, ką rodyti kiekviename iš jų.
-3. `AddFoodScreen` lauko tekstą saugo kintamuosiuose `name`, `grams` ir `calories`. Pakeitus tekstą, `validateFoodInput` vėl patikrina reikšmes.
-4. `validateFoodInput` pašalina tarpus, pakeičia kablelį tašku ir bando tekstą paversti skaičiumi. Tuomet paprastais `if / else if` patikrina pavadinimą, gramus ir kalorijas. Klaida grąžinama prie konkretaus lauko.
-5. Paspaudus „Pridėti į dienoraštį“, tikrinama `input.isValid`. Jeigu yra klaidų, jos parodomos. Jeigu klaidų nėra, sukuriamas vienas `DiaryEntry` ir perduodamas į `CalorieApp` funkciją `addEntry`.
-6. `addEntry` suteikia įrašui unikalų numerį, papildo sąrašą ir atidaro dienoraštį. `summarizeDiary` ciklu sudeda visų įrašų kalorijas, apskaičiuoja likutį bei progresą. `Screens.kt` parodo šias reikšmes.
-7. Trynimas pašalina įrašą pagal numerį. Tikslo slankiklis pakeičia `goal`. Abiem atvejais Compose perskaičiuoja suvestinę ir atnaujina ekraną.
+`Screen` išvardija tik tris ekranus: `Diary`, `Add` ir `Settings`.
 
-Pavyzdys: įvedus **200 g** ir **80 kcal / 100 g**, `calculateCalories` apskaičiuoja **200 × 80 ÷ 100 = 160 kcal**. Jei tikslas 2 000 kcal, likutis yra **2 000 − 160 = 1 840 kcal**.
+Pagrindiniai kintamieji:
 
-Keli naudojami Kotlin ir Compose dalykai:
+- `entries` — visų pridėtų maisto įrašų sąrašas.
+- `nextId` — numeris, kurį gaus kitas naujas įrašas.
+- `goal` — dienos kalorijų tikslas; pradinė reikšmė 2 000.
+- `showProgress` — ar dienoraštyje rodyti progreso juostą.
+- `menuOpen` ir `showAuthor` — ar atidarytas meniu ir autoriaus dialogas.
 
-- `data class` aprašo vieną duomenų įrašą; `copy(id = ...)` sukuria jo kopiją su priskirtu numeriu.
-- `rememberSaveable` išlaiko UI būseną pasukus ekraną. `DiaryEntry` turi `Serializable`, todėl Android gali išsaugoti ir atkurti įrašų sąrašą be mūsų rankinio laukų skaidymo.
-- `filter` palieka tik sąlygą atitinkančius įrašus, `find` suranda vieną pasirinktą produktą.
-- `toDoubleOrNull()` grąžina skaičių arba `null`, jei tekstas netinkamas. `isFinite()` atmeta begalybę ir `NaN`.
-- `onClick` reaguoja į paspaudimą, `onValueChange` — į lauko reikšmės pakeitimą. `onSave` perduoda paruoštą įrašą iš formos į pagrindinį ekraną.
+Jie saugomi su `rememberSaveable`, todėl reikšmės gali būti atkurtos pasukus ekraną. Kai vartotojas pakeičia būseną, Compose iš naujo parodo susijusią UI dalį.
 
-## Kaip patikrinti reikalavimą
+Bendra kalorijų suma apskaičiuojama paprastu ciklu:
 
-1. Dienoraštis pradžioje tuščias: 0 kcal, tikslas 2 000 kcal.
-2. Paspausk „+“, tada „Pridėti į dienoraštį“ palikęs tuščius laukus: rodoma klaida, įrašas nepridedamas.
-3. Įvesk „Košė“, 200 g ir 80 kcal / 100 g. Peržiūra rodo **160 kcal**.
-4. Išsaugok: dienos suma **160 kcal**, likutis **1 840 kcal**.
-5. Pakeisk tikslą į 1 000 kcal: likutis **840 kcal**.
-6. Pridėk antrą įrašą, išbandyk filtrus. Dienos suma turi apimti abu įrašus nepriklausomai nuo filtro.
-7. Atšauk trynimą — įrašas lieka. Patvirtink trynimą — suma sumažėja.
-8. „Maistas“ rask bananą, atidaryk jį, pasirink „Pridėti porciją“. Formoje galima pakeisti numatytą porciją.
-9. Išbandyk neigiamus skaičius, netinkamą tekstą, 0 g, 0 kcal / 100 g bei porciją su kableliu.
-10. Pasuk ekraną: įrašai, tikslas ir neužbaigta forma turi išlikti.
+```kotlin
+var total = 0
+for (entry in entries) total += entry.calories
+```
 
-## Šios versijos ribos
+`Scaffold` apjungia viršutinę juostą, apatinę navigaciją, „+“ mygtuką ir puslapių turinį. `NavHost` kiekvienam maršrutui priskiria vieną ekraną. `openPage` atidaro puslapį, o `navigateUp` grąžina į dienoraštį. Android „Atgal“ taip pat veikia per navigacijos valdiklį.
 
-Duomenys laikomi `rememberSaveable` būsenoje. Tai nėra nuolatinė duomenų bazė: iš naujo pradėjus programėlės sesiją įrašai gali būti prarasti. Dar nėra dienų istorijos ar automatinio dienoraščio pakeitimo vidurnaktį. Katalogo reikšmes galima pataisyti pagal tikrą produkto etiketę. 2 000 kcal yra demonstracinis pradinis tikslas.
+Pridėjimas: įrašui suteikiamas `nextId`, jis pridedamas į `entries`, skaitiklis padidinamas ir atidaromas dienoraštis. Trynimas: `filter` palieka tik įrašus, kurių numeris nesutampa su trinamu numeriu.
 
-## Testai
+Viršuje paspaudus trijų taškų mygtuką atsidaro `DropdownMenu`. Pasirinkus **„Autorius“**, `showAuthor` pakeičiamas į `true` ir atsidaro `AlertDialog` su vardu, pavarde bei grupe.
 
-- `DiaryLogicTest` tikrina porcijų skaičiavimą, kablelį ir tašką, apvalinimą, neteisingą įvestį, nulines kalorijas, dienos sumą, trynimą ir tikslo viršijimą.
-- `DiaryFlowTest` emuliatoriuje tikrina formos klaidas, pridėjimą, trynimo atšaukimą ir patvirtinimą, katalogo formą ir būsenos atkūrimą.
+## 4. Screens.kt — trys puslapiai
 
-## Pamokos
+### Dienoraštis
 
-- [Scrollable list](https://developer.android.com/codelabs/basic-android-kotlin-compose-training-add-scrollable-list)
-- [Material theming](https://developer.android.com/codelabs/basic-android-kotlin-compose-material-theming)
-- [Navigation Compose](https://developer.android.com/codelabs/basic-android-kotlin-compose-navigation)
-- [Material komponentai](https://developer.android.com/develop/ui/compose/components)
+`DiaryScreen` rodo bendrą kalorijų sumą, tikslą ir likutį. Likutis apskaičiuojamas taip:
+
+```kotlin
+val remaining = goal - total
+```
+
+Jeigu likutis neigiamas, rodoma, kiek tikslas viršytas. Progreso juosta rodo `total / goal`, o `coerceIn(0f, 1f)` apriboja ją nuo 0 iki 100 %.
+
+`LazyColumn` leidžia slinkti įrašų sąrašą. `LazyRow` leidžia slinkti kategorijų filtrus į šoną. Pasirinkus `FilterChip`, sąraše lieka tik atitinkamo valgymo įrašai. Bendra dienos suma visada skaičiuojama iš visų įrašų.
+
+Prie įrašo esantis šiukšliadėžės mygtukas jį ištrina ir suma perskaičiuojama.
+
+### Pridėti maistą
+
+`AddFoodScreen` turi tik du įvedimo laukus ir valgymo pasirinkimą:
+
+1. Pavadinimas: negali būti tuščias arba ilgesnis nei 100 simbolių. Tarpai pradžioje ir pabaigoje pašalinami su `trim()`.
+2. Kalorijos: tekstas paverčiamas sveiku skaičiumi su `toIntOrNull()`. Priimamos reikšmės nuo 0 iki 10 000. Raidės, neigiami skaičiai, trupmenos ir per didelės reikšmės atmetamos.
+3. `RadioButton` parenka, kuriam valgymui priklauso įrašas. `FlowRow` automatiškai perkelia pasirinkimus į naują eilę, jeigu jie netelpa pagal ekrano plotį.
+
+Paspaudus **„Pridėti“**, tikrinami abu laukai. Jeigu yra klaida, ji parodoma po atitinkamu lauku ir įrašas nepridedamas. Jei abu laukai teisingi, sukuriamas `FoodEntry` ir per `onAdd` perduodamas į `CalorieApp`.
+
+**„Išvalyti formą“** ištuština laukus ir grąžina „Pusryčiai“. **„Atšaukti“** grąžina į dienoraštį nepridėdamas įrašo.
+
+### Nustatymai
+
+- `Slider` keičia dienos tikslą nuo 1 000 iki 3 500 kcal po 100 kcal.
+- `Checkbox` įjungia arba išjungia dienoraščio progreso juostą.
+- `Switch` įjungia arba išjungia tamsią temą.
+
+Šie valdikliai keičia tikrą bendrą programėlės būseną.
+
+## Kaip atitinka reikalavimus
+
+| Reikalavimas | Kaip įgyvendintas |
+| --- | --- |
+| Vartotojo įvesties apdorojimas | Pavadinimo ir kalorijų tikrinimas, teksto pavertimas skaičiumi, klaidų rodymas. |
+| Skaičiavimai | Visų įrašų kalorijų suma, likutis, viršijimas ir dienos progresas. |
+| Reakcija į veiksmus | Pridėjimas, trynimas, filtravimas, tikslo keitimas, formos išvalymas. |
+| Keli puslapiai ir pilna navigacija | Trys puslapiai su apatine navigacija, grįžimo rodykle ir Android „Atgal“. |
+| Vardas, pavardė ir grupė | Autoriaus dialogas: Faustas Galeckis, MKDf-23s. |
+| Top App Bar su „Autorius“ meniu | Trijų taškų mygtukas → meniu „Autorius“ → dialogas. |
+| Kintami ekrano dydžiai | Elementai užima laisvą plotį, platus turinys centruojamas iki 600 dp, pasirinkimai persikelia į naują eilę, ekranai slenkami, forma prisitaiko prie klaviatūros. |
+| Estetika ir patogumas | Vieninga Material tema, žalios spalvos, apvalintos kortelės, nuoseklūs tarpai ir aiškios laukų etiketės. |
+
+## Grafiniai elementai ir jų paskirtis
+
+Naudojami [Material komponentai](https://developer.android.com/develop/ui/compose/components).
+
+| Elementas | Dalyvavimas programos veikime |
+| --- | --- |
+| `OutlinedTextField` | Maisto pavadinimo ir kalorijų įvedimas, klaidų rodymas. |
+| `Button` | Tikrina formą ir prideda įrašą. |
+| `OutlinedButton` | Išvalo formą. |
+| `TextButton` | Atšaukia įvedimą arba uždaro autoriaus dialogą. |
+| `IconButton` ir `Icon` | Atidaro meniu, grąžina atgal, ištrina pasirinktą įrašą. |
+| `FloatingActionButton` | Atidaro maisto įvedimo puslapį. |
+| `RadioButton` | Parenka įrašo valgymą. |
+| `FilterChip` | Filtruoja dienoraščio įrašus. |
+| `Slider` | Keičia kalorijų tikslą. |
+| `Checkbox` | Valdo progreso juostos matomumą. |
+| `Switch` | Pakeičia temą. |
+| `LazyColumn` ir `LazyRow` | Rodo bei slenka įrašus ir filtrus. |
+| `Card` ir `OutlinedCard` | Rodo kintančią dienos suvestinę ir vartotojo įrašus. |
+| `LinearProgressIndicator` | Rodo apskaičiuotą dienos progresą. |
+| `TopAppBar` | Rodo dabartinio puslapio pavadinimą ir meniu. |
+| `DropdownMenu` ir `DropdownMenuItem` | Leidžia pasirinkti „Autorius“. |
+| `AlertDialog` | Parodo autoriaus vardą, pavardę ir grupę. |
+| `NavigationBar` ir `NavigationBarItem` | Perjungia tris puslapius ir pažymi pasirinktą. |
+| `Text` | Rodo įrašus, sumas, klaidas, etiketes ir autorių. |
+| `HorizontalDivider` | Vizualiai atskiria nustatymus. |
+
+## Paprastas demonstravimas dėstytojui
+
+1. „Pridėti maistą“ palik laukus tuščius ir spausk „Pridėti“: turi pasirodyti klaidos.
+2. Įvesk „Košė“, 300 kcal, pasirink „Pusryčiai“. Pridėjus suma 300 kcal, likutis 1 700 kcal.
+3. Pridėk „Sriuba“, 250 kcal, pasirink „Pietūs“. Suma 550 kcal, likutis 1 450 kcal.
+4. Pasirink filtrą „Pietūs“: rodomas tik „Sriuba“, bet visos dienos suma lieka 550 kcal.
+5. Nustatymuose sumažink tikslą iki 1 000 kcal. Dienoraščio likutis tampa 450 kcal.
+6. Ištrink „Sriuba“: suma tampa 300 kcal, likutis 700 kcal.
+7. Įjunk ir išjunk progreso juostą, pakeisk temą.
+8. Meniu pasirink „Autorius“ ir parodyk vardą, pavardę bei grupę.
+9. Pasuk ekraną arba paleisk didesniame emuliatoriuje: turinys turi tilpti, o forma ir sąrašas slinkti.
+
+## Ribos ir paleidimas
+
+Nuolatinio saugojimo ir dienų istorijos nėra. Įrašai bei nustatymai išlaikomi pasukus ekraną, tačiau naujoje programėlės sesijoje gali būti prarasti. Kalorijos įvedamos sveikais skaičiais, jau žinant porcijos energinę vertę.
+
+Android Studio pasirink **Sync Project with Gradle Files**, tada **Run app**. Testų failai ir testų priklausomybės pašalinti. Kompiliavimas bei lint yra įprastos projekto patikros, jos nekuria automatinių testų.
